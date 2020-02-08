@@ -47,28 +47,9 @@ def load_CIFAR_data(data_dir):
 data_dir=r'E:/date/cifar-10-batches-py/'
 Xtrain,Ytrain,Xtest,Ytest=load_CIFAR_data(data_dir)
 #显示数据集信息
-print('training date shape:',Xtrain.shape)
-print('training labels shape:',Xtrain.shape)
-print('test date shape:',Xtrain.shape)
-print('test labels shape:',Xtrain.shape)
+
 #定义标签字典，每一个数字所代表的图像类别的名称
 label_dict={0:"airplane",1:"automobile",2:"bird",3:"cat",4:"deer",5:"dog",6:"fog",7:"horse",8:"ship",9:"truck"}
-#定义显示图像数据及其对应标签的函数
-def show(images,labels,prediction,idx,num=10):
-    flg=plt.gcf()
-    flg.set_size_inches(12,6)
-    if num>10:
-        num=10
-    for i in range(0,num):
-        ax=plt.subplot(2,5,1+i)
-        ax.imshow(images[idx],cmap='binary')
-        title=str(i)+','+label_dict[labels[idx]]
-        if len(prediction)>0:
-            title+='=>'+label_dict[prediction[idx]]
-        ax.set_title(title,fontsize=10)
-        idx+=1
-    plt.show()
-#show(Xtest,Ytest,[],0,10)
 #图像数字标准化
 Xtrain_nomalize=Xtrain.astype('float32')/255.0
 Xtest_nomalize=Xtest.astype('float32')/255.0
@@ -139,46 +120,27 @@ with tf.name_scope("optimizer"):
 with tf.name_scope("evaluation"):
     correct_prediction=tf.equal(tf.arg_max(pred,1),tf.arg_max(y,1))
     accuracy=tf.reduce_mean(tf.cast(correct_prediction,"float"))
-
-from time import time
 train_epochs=25
 batch_size=50
 total_batch=int(len(Xtrain)/batch_size)
-epoch_list=[]
-accuracy_list=[]
-loss_list=[]
-epoch=tf.Variable(0,name='epoch',trainable=False)
-starttime=time()
+ckpt_dir="E:\\log\\"
+saver=tf.train.Saver(max_to_keep=1)
 sess=tf.Session()
 init=tf.global_variables_initializer()
 sess.run(init)
+ckpt=tf.train.get_checkpoint_state(ckpt_dir)
+if ckpt and ckpt.model_checkpoint_path:
+    saver.restore(sess,'E:\\log\\-25')#从已保存的模型中读取参数
+    print("Restore model from" + ckpt.model_checkpoint_path)
+#计算测试集合上的准确率
+test_total_batch=int(len(Xtest_nomalize)/batch_size)
+test_acc_sum=0.0
+for i in range(test_total_batch):
+    test_image_batch=Xtest_nomalize[i*batch_size:(i+1)*batch_size]
+    test_label_batch=Ytest_onehot[i*batch_size:(i+1)*batch_size]
+    test_batch_acc=sess.run(accuracy,feed_dict={x:test_image_batch,y:test_label_batch})
+    test_acc_sum+=test_batch_acc
+test_acc=float(test_acc_sum/test_total_batch)
+print("{:.6f}".format(test_acc))
 
-ckpt_dir=r"E:\log\\"
-saver=tf.train.Saver(max_to_keep=1)
-summary_writer=tf.summary.FileWriter(ckpt_dir,sess.graph)
-ckpt=tf.train.latest_checkpoint(ckpt_dir)
-if ckpt!=None:
-    saver.restore(sess,ckpt)#加载所有参数
-    #从这里开始就可以直接使用模型进行预测，或者继续训练了
-else:
-    print("Training from scratch")
-start=sess.run(epoch)
-print("Training starts from {} epoch".format(start+1))
-#迭代训练
-def get_train_batch(number,batch_size):
-    return Xtrain_nomalize[number*batch_size:(number+1)*batch_size],Ytrain_onehot[number*batch_size:(number+1)*batch_size]
-for ep in range(start,train_epochs):
-    for i in range(total_batch):
-        batch_x,batch_y=get_train_batch(i,batch_size)
-        sess.run(optimizer,feed_dict={x:batch_x,y:batch_y})
-        if i%100==0:
-            print("Step {}".format(i),"finished")
-    loss,acc=sess.run([loss_function,accuracy],feed_dict={x:batch_x,y:batch_y})
-    epoch_list.append(ep+1)
-    loss_list.append(loss)
-    accuracy_list.append(acc)
-    print("Train epoch:","%2d"%(sess.run(epoch)+1),"Loss=","{:.6f}".format(loss),"Accuracy=",acc)
-    saver.save(sess,ckpt_dir+"",global_step=ep+1)
-    sess.run(epoch.assign(ep+1))
-duration=time()-starttime
-print("Train finished task:",duration)
+
