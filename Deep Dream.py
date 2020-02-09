@@ -136,6 +136,6 @@ def render_deepdream(t_obj,img0,iter_n=10,step=1.5,octave_n=4,octave_scale=1.4):
 
 name='mixed4c'
 layer_output=graph.get_tensor_by_name("import/%s:0"%name)
-img0=PIL.Image.open(r"C:\Users\23102\Desktop\mountain.jpg")
+img0=PIL.Image.open(r"C:\Users\23102\Desktop\-4fe14b4def5ffc6a.jpg")
 img0=np.float32(img0)
 render_deepdream(tf.square(layer_output),img0)
